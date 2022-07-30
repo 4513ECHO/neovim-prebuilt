@@ -37,10 +37,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen
       - name: Build Neovim
-        run: >
-          make -C neovim
-          CMAKE_BUILD_TYPE=RelWithDebInfo
-          CMAKE_EXTRA_FLAGS='-DCMAKE_C_COMPILER=zigcc -DCMAKE_CXX_COMPILER=zigc++ -DUSERNAME=${{ github.actor }} -DHOSTNAME=${{ github.repositoryurl }} -DCMAKE_INSTALL_PREFIX=./build'
+        run: |
+          CC=zigcc CXX=zigc++ make -C neovim \
+            CMAKE_BUILD_TYPE=RelWithDebInfo \
+            CMAKE_EXTRA_FLAGS='-DUSERNAME=${{ github.actor }} -DHOSTNAME=${{ github.repositoryurl }} -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build'
         env:
           TARGET: ${{ matrix.target }}
       - name: Install
