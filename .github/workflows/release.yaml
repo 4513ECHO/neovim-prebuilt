@@ -1,5 +1,5 @@
 ---
-name: Build
+name: Release
 on:
   schedule:
     - cron: "0 0 * * *"
@@ -29,6 +29,9 @@ jobs:
         uses: goto-bus-stop/setup-zig@v1
         with:
           version: 0.9.1
+      - name: Add scripts to $PATH
+        run: |
+          echo '${{ github.workspace }}/scripts' >> "$GITHUB_PATH"
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -37,7 +40,7 @@ jobs:
         run: >
           make -C neovim
           CMAKE_BUILD_TYPE=RelWithDebInfo
-          CMAKE_EXTRA_FLAGS='-DCMAKE_C_COMPILER=./scripts/zigcc -DCMAKE_CXX_COMPILER=./scripts/zigc++ -DUSERNAME=${{ github.actor }} -DHOSTNAME=${{ github.repositoryurl }} -DCMAKE_INSTALL_PREFIX=./build'
+          CMAKE_EXTRA_FLAGS='-DCMAKE_C_COMPILER=zigcc -DCMAKE_CXX_COMPILER=zigc++ -DUSERNAME=${{ github.actor }} -DHOSTNAME=${{ github.repositoryurl }} -DCMAKE_INSTALL_PREFIX=./build'
         env:
           TARGET: ${{ matrix.target }}
       - name: Install
@@ -50,7 +53,7 @@ jobs:
       - name: Create archive
         run: |
           [[ ! -d archive ]] && mkdir archive
-          target="${{ matrix.target }}"
+          target='${{ matrix.target }}'
           echo "## make archive nvim-$target"
           if [[ "$target" == *"windows"* ]]; then
             zip "archive/nvim-$target.zip" build
