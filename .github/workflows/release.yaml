@@ -1,0 +1,70 @@
+---
+name: Build
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - aarch64-linux-musl
+          - aarch64-macos-gnu
+          - x86_64-linux-musl
+          - x86_64-macos-gnu
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Checkout neovim
+        uses: actions/checkout@v3
+        with:
+          repository: neovim/neovim
+          path: neovim
+      - name: Set up zig
+        uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: 0.9.1
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen
+      - name: Build Neovim
+        run: >
+          make -C neovim
+          CMAKE_BUILD_TYPE=RelWithDebInfo
+          CMAKE_EXTRA_FLAGS='-DCMAKE_C_COMPILER=./scripts/zigcc -DCMAKE_CXX_COMPILER=./scripts/zigc++ -DUSERNAME=${{ github.actor }} -DHOSTNAME=${{ github.repositoryurl }} -DCMAKE_INSTALL_PREFIX=./build'
+        env:
+          TARGET: ${{ matrix.target }}
+      - name: Install
+        run: make -C neovim install
+      - name: Get version
+        id: version
+        run: |
+          printf '::set-output name=release::%s\n' "$(./neovim/build/bin/nvim --version | head -n 1)"
+          printf '::set-output name=version::%s\n' "$(./neovim/build/bin/nvim --version | head -n 3 | sed -z 's/\n/%0A/g')"
+      - name: Create archive
+        run: |
+          [[ ! -d archive ]] && mkdir archive
+          target="${{ matrix.target }}"
+          echo "## make archive nvim-$target"
+          if [[ "$target" == *"windows"* ]]; then
+            zip "archive/nvim-$target.zip" build
+          else
+            tar -zcvf "archive/$target.tar.gz" build
+          fi
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: nvim-${{ matrix.target }}
+          path: "archive/*"
+  # release:
+  #   needs: [build]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
